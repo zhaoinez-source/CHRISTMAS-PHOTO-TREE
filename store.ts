@@ -14,8 +14,7 @@ export enum GestureType {
 
 interface PhotoData {
   id: string;
-  url: string;
-  texture?: any; // THREE.Texture
+  url: string; // Now stores Base64 data for persistence
 }
 
 interface AppState {
@@ -31,43 +30,66 @@ interface AppState {
   setGesture: (gesture: GestureType) => void;
   setParallax: (x: number, y: number) => void;
   addPhoto: (url: string) => void;
+  removePhoto: (id: string) => void;
   selectRandomPhoto: () => void;
   deselectPhoto: () => void;
   setCameraReady: (ready: boolean) => void;
 }
 
-export const useStore = create<AppState>((set, get) => ({
-  treeState: TreeState.FORMED,
-  targetProgress: 1,
-  gesture: GestureType.NONE,
-  parallax: { x: 0, y: 0 },
-  photos: [],
-  selectedPhoto: null,
-  cameraReady: false,
+const STORAGE_KEY = 'grand_tree_memories_v1';
 
-  setTreeState: (treeState) => set({ 
-    treeState, 
-    targetProgress: treeState === TreeState.FORMED ? 1 : 0 
-  }),
-  
-  setGesture: (gesture) => set({ gesture }),
-  
-  setParallax: (x, y) => set({ parallax: { x, y } }),
-  
-  addPhoto: (url) => set((state) => ({
-    photos: [...state.photos, { id: Math.random().toString(36).substr(2, 9), url }]
-  })),
+export const useStore = create<AppState>((set, get) => {
+  // Load initial photos from localStorage
+  const savedPhotos = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 
-  selectRandomPhoto: () => {
-    const { photos, selectedPhoto, treeState } = get();
-    // Only allow grabbing if in chaos mode (exploded) or if desired
-    if (photos.length === 0 || selectedPhoto) return;
+  return {
+    treeState: TreeState.FORMED,
+    targetProgress: 1,
+    gesture: GestureType.NONE,
+    parallax: { x: 0, y: 0 },
+    photos: savedPhotos,
+    selectedPhoto: null,
+    cameraReady: false,
+
+    setTreeState: (treeState) => set({ 
+      treeState, 
+      targetProgress: treeState === TreeState.FORMED ? 1 : 0 
+    }),
     
-    const random = photos[Math.floor(Math.random() * photos.length)];
-    set({ selectedPhoto: random });
-  },
+    setGesture: (gesture) => set({ gesture }),
+    
+    setParallax: (x, y) => set({ parallax: { x, y } }),
+    
+    addPhoto: (url) => {
+      const newPhoto = { id: Math.random().toString(36).substr(2, 9), url };
+      set((state) => {
+        const updatedPhotos = [...state.photos, newPhoto];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPhotos));
+        return { photos: updatedPhotos };
+      });
+    },
 
-  deselectPhoto: () => set({ selectedPhoto: null }),
-  
-  setCameraReady: (cameraReady) => set({ cameraReady }),
-}));
+    removePhoto: (id) => {
+      set((state) => {
+        const updatedPhotos = state.photos.filter(p => p.id !== id);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPhotos));
+        return { 
+          photos: updatedPhotos,
+          selectedPhoto: state.selectedPhoto?.id === id ? null : state.selectedPhoto
+        };
+      });
+    },
+
+    selectRandomPhoto: () => {
+      const { photos, selectedPhoto } = get();
+      if (photos.length === 0 || selectedPhoto) return;
+      
+      const random = photos[Math.floor(Math.random() * photos.length)];
+      set({ selectedPhoto: random });
+    },
+
+    deselectPhoto: () => set({ selectedPhoto: null }),
+    
+    setCameraReady: (cameraReady) => set({ cameraReady }),
+  };
+});

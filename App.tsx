@@ -50,8 +50,14 @@ const UploadButton: React.FC = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const url = URL.createObjectURL(e.target.files[0]);
-      addPhoto(url);
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          addPhoto(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -74,6 +80,33 @@ const UploadButton: React.FC = () => {
   );
 }
 
+const SelectedPhotoActions: React.FC = () => {
+  const selectedPhoto = useStore((state) => state.selectedPhoto);
+  const removePhoto = useStore((state) => state.removePhoto);
+  const deselectPhoto = useStore((state) => state.deselectPhoto);
+
+  if (!selectedPhoto) return null;
+
+  return (
+    <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex gap-4">
+        <button 
+          onClick={() => deselectPhoto()}
+          className="bg-black/80 text-[#D4AF37] border border-[#D4AF37]/50 px-6 py-2 font-luxury text-sm tracking-widest hover:bg-[#D4AF37] hover:text-black transition-all"
+        >
+          BACK TO TREE
+        </button>
+        <button 
+          onClick={() => removePhoto(selectedPhoto.id)}
+          className="bg-[#C41E3A]/20 text-[#C41E3A] border border-[#C41E3A] px-6 py-2 font-luxury text-sm tracking-widest hover:bg-[#C41E3A] hover:text-white transition-all shadow-[0_0_15px_rgba(196,30,58,0.3)]"
+        >
+          DELETE MEMORY
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const Instructions: React.FC = () => {
     return (
         <div className="absolute bottom-8 left-8 z-40 text-[#D4AF37] font-serif text-sm bg-black/40 p-4 border-l-2 border-[#D4AF37] backdrop-blur-sm max-w-xs">
@@ -94,6 +127,7 @@ function App() {
       <CameraFeed />
       <GestureFeedback />
       <UploadButton />
+      <SelectedPhotoActions />
       <Instructions />
       
       <div className="absolute inset-0 z-0">
