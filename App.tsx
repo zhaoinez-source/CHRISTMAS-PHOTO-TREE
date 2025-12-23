@@ -45,24 +45,62 @@ const GestureFeedback: React.FC = () => {
 };
 
 const UploadButton: React.FC = () => {
+  const photos = useStore((state) => state.photos);
   const addPhoto = useStore((state) => state.addPhoto);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const compressAndAdd = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1024;
+        const MAX_HEIGHT = 1024;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Use JPEG compression (0.7) to significantly reduce Base64 string size
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+        addPhoto(compressedBase64);
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          addPhoto(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      if (photos.length >= 30) {
+        alert("Memory capacity reached (Max 30). Please delete a memory to add a new one.");
+        return;
+      }
+      compressAndAdd(e.target.files[0]);
     }
   };
 
   return (
-    <div className="absolute bottom-8 right-8 z-50 pointer-events-auto">
+    <div className="absolute bottom-8 right-8 z-50 pointer-events-auto flex flex-col items-end gap-2">
+      <div className="text-[#D4AF37] font-luxury text-[10px] tracking-widest opacity-60">
+        CAPACITY: {photos.length} / 30
+      </div>
       <input 
         type="file" 
         accept="image/*" 
